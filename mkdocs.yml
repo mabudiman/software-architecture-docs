@@ -1,0 +1,82 @@
+site_name: Architecture Guidelines
+site_description: Panduan arsitektur perangkat lunak untuk semua level developer / Software architecture guidelines for developers at every level.
+site_author: Architecture Team
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Architecture Guide:
+      - 1. Foundation: architecture/01-foundation.md
+      - 2. Application Patterns: architecture/02-application-patterns.md
+      - 3. Security: architecture/03-security.md
+      - 4. Quality & Reliability: architecture/04-quality-reliability.md
+      - 5. Operations: architecture/05-operations.md
+      - 6. User Interface: architecture/06-user-interface.md
+      - 7. Optional Features: architecture/07-optional-features.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/
