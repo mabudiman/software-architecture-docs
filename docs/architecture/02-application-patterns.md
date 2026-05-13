@@ -38,6 +38,46 @@ Tapi: microservice **bukan obat mujarab**. Kalau tim kecil & domain belum komple
 ### Istilah & Konsep / Glossary
 
 - **Stateless** — service tidak menyimpan data di memorinya sendiri antar request. Jika butuh state, simpan di Redis / database eksternal. Dengan stateless, request bisa dilayani pod mana saja → mudah di-scale.
+
+**Contoh masalah stateful vs solusi stateless:**
+
+```csharp
+// ❌ SALAH: State tersimpan di memori service — hilang saat restart/scaling
+public class CartService
+{
+    private readonly Dictionary<string, List<CartItem>> _carts = new();
+    public void AddItem(string userId, CartItem item)
+    {
+        if (!_carts.ContainsKey(userId)) _carts[userId] = new List<CartItem>();
+        _carts[userId].Add(item);
+    }
+}
+
+// ✅ BENAR: State tersimpan di Redis (external shared store)
+public class CartService
+{
+    private readonly IDistributedCache _cache;
+    public async Task AddItemAsync(string userId, CartItem item)
+    {
+        var cacheKey = $"cart-service:cart:{userId}";
+        var cart = await _cache.GetAsync<List<CartItem>>(cacheKey) ?? new List<CartItem>();
+        cart.Add(item);
+        await _cache.SetAsync(cacheKey, cart, TimeSpan.FromDays(7));
+    }
+}
+```
+
+```mermaid
+flowchart LR
+    U([User]) --> LB[Load Balancer]
+    LB --> I1[Instance #1]
+    LB --> I2[Instance #2]
+    LB --> I3[Instance #3]
+    I1 & I2 & I3 --> R[(Redis\nShared Store)]
+
+    style R fill:#8E44AD,color:#fff
+```
+
 - **Bounded Context** (dari DDD) — batas logis sebuah area bisnis. "Order" di konteks penjualan ≠ "Order" di konteks dapur restoran. Setiap microservice idealnya = satu bounded context.
 - **Ubiquitous Language** — istilah yang sama dipakai oleh developer, business analyst, dan dokumen. Tidak boleh kode menyebut "Cart" tapi dokumen bisnis menyebut "Basket".
 - **Distributed Monolith** — anti-pattern: punya banyak service tapi mereka saling terkait erat sehingga harus di-deploy bersamaan. Punya semua kerumitan microservice tanpa manfaatnya.
@@ -68,9 +108,88 @@ Tapi: microservice **bukan obat mujarab**. Kalau tim kecil & domain belum komple
 
 <span class="badge badge-mandatory">Mandatory</span> Service berkomunikasi via REST/gRPC sinkron (untuk query) atau messaging asinkron (untuk command/event).
 
+**Sinkron (REST/gRPC) — untuk query yang butuh jawaban langsung:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant OrderService
+    participant ProductService
+
+    Client->>OrderService: POST /orders (sync)
+    OrderService->>ProductService: GET /products/123 (sync)
+    ProductService-->>OrderService: product data
+    OrderService-->>Client: order created response
+```
+
+**Asinkron (Message Broker) — untuk command/event yang tidak butuh jawaban langsung:**
+
+```mermaid
+sequenceDiagram
+    participant OrderService
+    participant MessageBroker
+    participant NotificationService
+    participant InventoryService
+
+    OrderService->>MessageBroker: publish OrderCreatedEvent
+    OrderService-->>Client: 202 Accepted (langsung)
+    MessageBroker->>NotificationService: deliver event
+    MessageBroker->>InventoryService: deliver event
+    Note over NotificationService: kirim email konfirmasi
+    Note over InventoryService: kurangi stok
+```
+
+| Aspek | REST/gRPC (Sinkron) | Messaging (Asinkron) |
+|-------|---------------------|----------------------|
+| **Pola** | Query | Command / Event |
+| **Coupling** | Temporal (caller menunggu) | Decoupled temporal |
+| **Fault tolerance** | Rendah (cascade failure) | Tinggi (consumer offline ≠ data hilang) |
+| **Contoh** | Cek harga produk | Order confirmation email |
+
+**Cara service berbagi data tanpa shared database:**
+
+```csharp
+// Opsi 1: API Call (query sinkron)
+var product = await _productClient.GetProductAsync(request.ProductId);
+
+// Opsi 2: Event-Driven (data denormalization)
+// ProductService publish event → OrderService simpan salinan data lokal
+public class ProductPriceUpdatedEventHandler : IEventHandler<ProductPriceUpdatedEvent>
+{
+    public async Task HandleAsync(ProductPriceUpdatedEvent @event)
+    {
+        await _localProductReadModel.UpdatePriceAsync(@event.ProductId, @event.NewPrice);
+    }
+}
+```
+
 <span class="badge badge-mandatory">Mandatory</span> Batas service sejajar dengan *bounded context* — jangan pecah satu bounded context jadi banyak service.
 
+**Contoh bounded context yang berbeda untuk istilah yang sama:**
+
+```
+Bounded Context: Katalog         Bounded Context: Inventory         Bounded Context: Pengiriman
+┌─────────────────────┐          ┌─────────────────────┐            ┌─────────────────────┐
+│ Produk:             │          │ Produk:             │            │ Produk:             │
+│ - Nama              │          │ - SKU               │            │ - Berat             │
+│ - Deskripsi         │          │ - Stok              │            │ - Dimensi           │
+│ - Gambar            │          │ - Lokasi gudang     │            │ - Kategori bahaya   │
+│ - Kategori          │          │ - Threshold reorder │            │ - Metode kemas      │
+└─────────────────────┘          └─────────────────────┘            └─────────────────────┘
+```
+
+**Anti-pattern: Split bounded context ke banyak service →** `CatalogService` hanya simpan nama, `PricingService` simpan harga. Padahal nama & harga = satu konteks Katalog yang sama. Setiap menampilkan daftar produk harus panggil dua service → overhead.
+
 <span class="badge badge-mandatory">Mandatory</span> Hindari *distributed monolith* — service tidak berbagi library yang berisi logika bisnis.
+
+**Yang boleh dibagi (shared) vs yang tidak:**
+
+| Boleh Dibagi (Shared) | Tidak Boleh Dibagi |
+|-----------------------|--------------------|
+| HTTP middleware (logging, auth header) | Logika validasi bisnis |
+| DTO/Contract untuk API publik | Perhitungan harga/diskon |
+| Utility umum (date helper, string extension) | Domain entities dan aggregates |
+| Konfigurasi observability (OpenTelemetry) | Repository implementations |
 
 <span class="badge badge-mandatory">Mandatory</span> Gunakan *Ubiquitous Language* secara konsisten dalam satu bounded context.
 
@@ -251,7 +370,9 @@ Analogi: di restoran, koki tidak menunggu nasi matang baru goreng ayam — ia mu
 - **N+1 Problem** — bug performa: 1 query parent + N query child = N+1 round-trip ke DB.
 - **Connection Pool** — kumpulan koneksi DB yang dipakai bergantian; jauh lebih cepat daripada buka-tutup koneksi tiap request.
 - **CQRS (Command Query Responsibility Segregation)** — pola memisahkan model & path untuk operasi *write* (command) dan *read* (query). Cocok kalau pola baca jauh berbeda dari pola tulis (mis. tulis transaksional, baca laporan analitik).
-- **Pagination** — membatasi jumlah data yang dikembalikan per request (mis. 50 baris per halaman).
+- **Pagination** — membatasi jumlah data yang dikembalikan per request (mis. 50 baris per halaman). Dua pendekatan utama:
+    - *Offset-based* (`?page=2&pageSize=20`) — mudah tapi tidak efisien untuk dataset besar.
+    - *Cursor-based / Keyset* (`?cursor=abc&pageSize=20`) — performa konstan, cocok untuk data besar yang terus tumbuh.
 
 ### Anti-pattern
 
@@ -261,6 +382,162 @@ Analogi: di restoran, koki tidak menunggu nasi matang baru goreng ayam — ia mu
 - ❌ Connection di-open di setiap query tanpa pool.
 - ❌ Loop dalam loop yang memicu query DB di setiap iterasi.
 </div>
+
+#### Contoh N+1 Problem & Solusi
+
+```csharp
+// ❌ N+1 PROBLEM — 101 query untuk 100 order!
+var orders = await _context.Orders.ToListAsync();              // 1 query
+foreach (var order in orders)
+{
+    var customer = await _context.Customers.FindAsync(order.CustomerId); // N query
+    // ...
+}
+
+// ✅ SOLUSI 1: Eager Loading — satu query JOIN
+var orders = await _context.Orders
+    .Include(o => o.Customer)
+    .Include(o => o.OrderItems).ThenInclude(oi => oi.Product)
+    .ToListAsync();
+
+// ✅ SOLUSI 2: Batch Fetching — 2 query total
+var orders = await _context.Orders.ToListAsync();
+var customerIds = orders.Select(o => o.CustomerId).Distinct().ToList();
+var customers = await _context.Customers
+    .Where(c => customerIds.Contains(c.Id))
+    .ToDictionaryAsync(c => c.Id);
+
+// ✅ SOLUSI 3: Projection — pilih kolom yang dibutuhkan saja
+var result = await _context.Orders
+    .Select(o => new OrderDto
+    {
+        OrderId = o.Id,
+        CustomerName = o.Customer.Name,  // EF Core otomatis JOIN
+        TotalAmount = o.TotalAmount
+    }).ToListAsync();
+```
+
+#### Contoh Repository + Mock Test
+
+```csharp
+// Domain layer — interface
+public interface IProductRepository
+{
+    Task<Product> GetByIdAsync(ProductId id, CancellationToken ct = default);
+    Task AddAsync(Product product, CancellationToken ct = default);
+}
+
+// Unit test — mock repository, tanpa database
+[Fact]
+public async Task CreateOrder_ShouldFail_WhenProductNotFound()
+{
+    var mockRepo = new Mock<IProductRepository>();
+    mockRepo.Setup(r => r.GetByIdAsync(It.IsAny<ProductId>(), default))
+        .ReturnsAsync((Product)null);
+
+    var service = new OrderService(mockRepo.Object);
+    await Assert.ThrowsAsync<ProductNotFoundException>(
+        () => service.CreateOrderAsync(new CreateOrderRequest { ProductId = 99 }));
+}
+```
+
+#### Contoh Cursor-Based Pagination
+
+```csharp
+// Model
+public class CursorPagedRequest
+{
+    public string? Cursor { get; set; }
+    public int PageSize { get; set; } = 20;
+}
+
+// Repository — performa konstan meskipun dataset besar
+public async Task<CursorPagedResult<Product>> GetProductsAsync(CursorPagedRequest request)
+{
+    var query = _context.Products.Where(p => p.IsActive);
+
+    if (request.Cursor != null)
+    {
+        var lastId = int.Parse(request.Cursor);
+        query = query.Where(p => p.Id > lastId);
+    }
+
+    var items = await query.OrderBy(p => p.Id)
+        .Take(request.PageSize + 1).ToListAsync();
+
+    var hasNextPage = items.Count > request.PageSize;
+    if (hasNextPage) items = items.Take(request.PageSize).ToList();
+
+    return new CursorPagedResult<Product>
+    {
+        Items = items,
+        NextCursor = hasNextPage ? items.Last().Id.ToString() : null
+    };
+}
+```
+
+#### Contoh Connection Pool Configuration
+
+```csharp
+// .NET — connection string dengan pool config eksplisit
+"Server=localhost;Database=mydb;Min Pool Size=5;Max Pool Size=100;Connection Timeout=30;"
+```
+
+```yaml
+# Java (HikariCP / Spring Boot)
+spring:
+  datasource:
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+```
+
+```typescript
+// Node.js (pg / node-postgres)
+const pool = new Pool({ min: 5, max: 20, idleTimeoutMillis: 30000 });
+```
+
+| Setting | Panduan |
+|---------|---------|
+| `min` | Baseline traffic normal (5–10) |
+| `max` | Jangan melebihi kemampuan DB server. PostgreSQL 4 core → max ~100 |
+| `connectionTimeout` | 5–30 detik. Lebih dari ini → error ke client |
+| `idleTimeout` | Cegah akumulasi koneksi idle |
+
+#### Contoh Query Object Pattern
+
+```csharp
+// Query object — merepresentasikan satu query dengan semua kriterianya
+public class ProductQuery
+{
+    public int? CategoryId { get; set; }
+    public decimal? MinPrice { get; set; }
+    public decimal? MaxPrice { get; set; }
+    public string? Keyword { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+// Repository — filter diterapkan kondisional
+public async Task<PagedResult<Product>> SearchAsync(ProductQuery query, CancellationToken ct)
+{
+    var q = _context.Products.AsQueryable();
+    if (query.CategoryId.HasValue) q = q.Where(p => p.CategoryId == query.CategoryId.Value);
+    if (query.MinPrice.HasValue) q = q.Where(p => p.Price >= query.MinPrice.Value);
+    if (!string.IsNullOrEmpty(query.Keyword)) q = q.Where(p => p.Name.Contains(query.Keyword));
+
+    var totalCount = await q.CountAsync(ct);
+    var items = await q.OrderBy(p => p.Name)
+        .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync(ct);
+
+    return new PagedResult<Product> { Items = items, TotalCount = totalCount };
+}
+
+// Penggunaan — ekspresif dan mudah dibaca
+var results = await _repo.SearchAsync(new ProductQuery
+    { CategoryId = 5, MinPrice = 50_000, Keyword = "laptop", Page = 1, PageSize = 20 });
+```
 
 ### Aturan / Rules
 
@@ -323,6 +600,194 @@ Analogi: di restoran, koki tidak menunggu nasi matang baru goreng ayam — ia mu
 - ❌ Cache key tidak konsisten (`user-123`, `users:123`, `User_123`) → cache miss tanpa sadar.
 - ❌ Cache data sensitif (token, password) tanpa enkripsi → bocor jika Redis ter-dump.
 </div>
+
+### Contoh Implementasi Cache / Cache Implementation Examples
+
+#### Cache-Aside (Lazy Loading)
+
+```mermaid
+flowchart TD
+    A([Client Request]) --> B[Check Cache]
+    B --> C{Cache Hit?}
+    C -- HIT --> D([Return Cached Data])
+    C -- MISS --> E[Fetch from Database]
+    E --> F[Store in Cache with TTL]
+    F --> G([Return Data])
+
+    style D fill:#27AE60,color:#fff,stroke:none
+    style G fill:#27AE60,color:#fff,stroke:none
+    style E fill:#E67E22,color:#fff,stroke:none
+```
+
+```csharp
+// Cache-Aside — pola paling umum
+public async Task<Product> GetProductByIdAsync(int productId)
+{
+    var cacheKey = $"product-service:product:{productId}";
+    var cached = await _cache.GetAsync<Product>(cacheKey);
+    if (cached != null) return cached;
+
+    var product = await _repository.GetByIdAsync(productId);
+    await _cache.SetAsync(cacheKey, product, TimeSpan.FromHours(24));
+    return product;
+}
+
+// Invalidate saat update
+public async Task UpdateProductAsync(int productId, UpdateProductRequest request)
+{
+    await _repository.UpdateAsync(productId, request);
+    await _cache.DeleteAsync($"product-service:product:{productId}");
+}
+```
+
+#### Write-Through
+
+```csharp
+// Write-Through — tulis ke DB dan cache sekaligus
+public async Task<Product> CreateProductAsync(CreateProductRequest request)
+{
+    var product = await _repository.CreateAsync(request);
+    await _cache.SetAsync($"product-service:product:{product.Id}", product, TimeSpan.FromHours(24));
+    return product;
+}
+```
+
+#### Perbandingan Strategi
+
+| Aspek | Cache-Aside | Write-Through | Write-Behind |
+|-------|-------------|---------------|--------------|
+| Konsistensi | Eventual | Strong | Eventual |
+| Write Perf | Normal | Sedikit lambat | Sangat tinggi |
+| Risiko data loss | Rendah | Rendah | Ada |
+| Use Case | Read-heavy | Read-after-write | High write throughput |
+
+#### Panduan TTL per Jenis Data
+
+| Jenis Data | TTL yang Disarankan | Alasan |
+|------------|---------------------|--------|
+| Detail produk | 24 jam | Jarang berubah, read-heavy |
+| Profil pengguna | 24 jam | Jarang diupdate |
+| Harga produk | 1-6 jam | Bisa berubah karena promo |
+| Stok produk | 5-15 menit | Sering berubah, akurasi penting |
+| Keranjang belanja | 30 menit - 1 jam | Data sesi, perlu fresh |
+| Token autentikasi | Sesuai expiry token | Keamanan kritis |
+
+**Tambahkan jitter pada TTL untuk menghindari thundering herd:**
+
+```csharp
+// Tambahkan variasi ±10% agar cache tidak expire bersamaan
+private TimeSpan GetTtlWithJitter(TimeSpan baseTtl)
+{
+    var jitterFactor = 0.9 + (Random.Shared.NextDouble() * 0.2); // 0.9 - 1.1
+    return TimeSpan.FromMilliseconds(baseTtl.TotalMilliseconds * jitterFactor);
+}
+```
+
+#### Cache Key Helper
+
+```csharp
+// Centralize key generation untuk konsistensi {service}:{entity}:{id}
+public static class CacheKeys
+{
+    public static string Product(int id) => $"product-service:product:{id}";
+    public static string Order(int id) => $"order-service:order:{id}";
+    public static string UserCart(int userId) => $"cart-service:cart:user:{userId}";
+    public static string UserProfile(int userId) => $"user-service:user:{userId}";
+}
+
+// ❌ BURUK — key tidak konsisten
+await _cache.SetAsync("p123", product, ttl);
+await _cache.SetAsync($"product:{id}", product, ttl);
+
+// ✅ BAIK — pakai helper
+await _cache.SetAsync(CacheKeys.Product(id), product, ttl);
+```
+
+#### L1 + L2 Multi-Tier Cache
+
+```
+Request → L1 Cache (in-process, <1ms)
+              ↓ miss
+          L2 Cache (Redis, ~1-2ms)
+              ↓ miss
+          Database (~10-100ms)
+```
+
+```csharp
+// Multi-tier: L1 (IMemoryCache) + L2 (Redis)
+public async Task<Product?> GetProductAsync(int productId)
+{
+    var key = CacheKeys.Product(productId);
+
+    // Coba L1 (in-process) dulu
+    if (_l1Cache.TryGetValue(key, out Product? product))
+        return product;
+
+    // Coba L2 (Redis)
+    var cached = await _l2Cache.GetAsync<Product>(key);
+    if (cached != null)
+    {
+        _l1Cache.Set(key, cached, TimeSpan.FromMinutes(5)); // Populate L1
+        return cached;
+    }
+
+    // Kedua miss — ambil dari DB
+    product = await _repository.GetByIdAsync(productId);
+    if (product != null)
+    {
+        await _l2Cache.SetAsync(key, product, TimeSpan.FromHours(24));
+        _l1Cache.Set(key, product, TimeSpan.FromMinutes(5));
+    }
+    return product;
+}
+```
+
+| Tier | Teknologi | Latency | Scope | TTL Typical |
+|------|-----------|---------|-------|-------------|
+| L1 | IMemoryCache | < 1ms | Per instance | 1-10 menit |
+| L2 | Redis | 1-5ms | Semua instance | 1-24 jam |
+| Source | Database | 10-100ms | Persistent | N/A |
+
+#### Cache Stampede Mitigation
+
+**Solusi 1: Mutex Lock — hanya satu request yang regenerasi cache:**
+
+```csharp
+public async Task<T?> GetOrSetAsync<T>(string key, Func<Task<T>> factory, TimeSpan ttl)
+{
+    var cached = await _cache.GetAsync<T>(key);
+    if (cached != null) return cached;
+
+    var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+    await semaphore.WaitAsync();
+    try
+    {
+        // Double-check setelah acquire lock
+        cached = await _cache.GetAsync<T>(key);
+        if (cached != null) return cached;
+
+        var freshData = await factory();
+        await _cache.SetAsync(key, freshData, ttl);
+        return freshData;
+    }
+    finally { semaphore.Release(); }
+}
+```
+
+**Solusi 2: Cache Warming — isi cache sebelum dibutuhkan:**
+
+```csharp
+// Background service preload data populer saat startup
+public class CacheWarmupService : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        var popularProducts = await _repo.GetTopSellingAsync(100);
+        foreach (var product in popularProducts)
+            await _cache.SetAsync(CacheKeys.Product(product.Id), product, TimeSpan.FromHours(24));
+    }
+}
+```
 
 ### Aturan / Rules
 

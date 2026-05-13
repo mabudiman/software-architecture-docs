@@ -111,7 +111,218 @@ Once an application is released, the work isn't done — it's just beginning. Th
 - ❌ Liveness yang mengecek DB → DB hang sebentar = semua pod di-restart oleh K8s = total outage.
 - ❌ Health endpoint kembalikan `200 OK` dengan body "FAIL" → orchestrator menganggap sehat (hanya baca status code).
 - ❌ Health endpoint butuh autentikasi → orchestrator tidak bisa cek.
+- ❌ Satu endpoint `/health` untuk liveness dan readiness → DB maintenance = semua pod di-restart (harusnya cukup stop routing traffic).
 </div>
+
+### Perbedaan Liveness vs Readiness
+
+```
+Liveness probe (/health/live):              Readiness probe (/health/ready):
+┌────────────────────────────────┐           ┌────────────────────────────────┐
+│ Cek proses hidup & responsif   │           │ Cek proses + SEMUA dependency │
+│ JANGAN cek external dependency │           │ DB, Redis, Message Broker     │
+│                                │           │                                │
+│ Gagal → Kubernetes RESTART pod │           │ Gagal → STOP routing traffic  │
+│                                │           │ Pod tetap hidup, tunggu pulih │
+└────────────────────────────────┘           └────────────────────────────────┘
+```
+
+**Skenario: DB maintenance window**
+
+```
+Dengan satu endpoint /health:
+  DB offline → /health 503 → K8s restart SEMUA pod → total outage ❌
+
+Dengan endpoint terpisah:
+  DB offline → /health/live 200 (proses OK) → pod tetap hidup
+             → /health/ready 503 (DB unreachable) → stop traffic
+             → DB kembali → /health/ready 200 → traffic resume ✅
+```
+
+### Dependency Health Checking
+
+Readiness probe harus memeriksa semua dependency yang dipakai:
+
+| Dependency | Cara Cek | Timeout |
+|-----------|----------|---------|
+| Database | `SELECT 1` (lightweight query) | 2-3 detik |
+| Redis | `PING` → expect `PONG` | 2-3 detik |
+| Message Broker | Cek TCP connection / management API | 2-3 detik |
+
+**Status model per dependency:**
+
+| Status | Arti | Pengaruh HTTP Code |
+|--------|------|--------------------|
+| `healthy` | Dependency beroperasi normal | Kontribusi ke 200 |
+| `degraded` | Reachable tapi lambat/parsial | 200 (dengan warning) atau 503 |
+| `unhealthy` | Tidak reachable / error | Kontribusi ke 503 |
+
+**Aturan derivasi status keseluruhan:** status ditentukan oleh dependency terburuk.
+
+### Response Format (IETF `application/health+json`)
+
+```json
+{
+  "status": "healthy",
+  "version": "1.4.2",
+  "releaseId": "3f2a1b",
+  "checks": {
+    "database": [{
+      "componentType": "datastore",
+      "status": "healthy",
+      "time": "2025-11-20T08:45:12Z",
+      "responseTime": "12ms"
+    }],
+    "cache": [{
+      "componentType": "datastore",
+      "status": "healthy",
+      "time": "2025-11-20T08:45:12Z",
+      "responseTime": "2ms"
+    }],
+    "messageBroker": [{
+      "componentType": "messagebus",
+      "status": "unhealthy",
+      "time": "2025-11-20T08:45:12Z",
+      "output": "Connection refused: rabbitmq:5672"
+    }]
+  }
+}
+```
+
+| Field | Wajib | Deskripsi |
+|-------|-------|-----------|
+| `status` | ✅ | Overall: `healthy`, `degraded`, atau `unhealthy` |
+| `checks` | ✅ | Object dengan satu key per dependency |
+| `checks[name][].status` | ✅ | Status per dependency |
+| `checks[name][].time` | ✅ | ISO 8601 timestamp |
+| `checks[name][].responseTime` | ✅ | Durasi pengecekan |
+| `version` | Disarankan | Versi aplikasi |
+
+**JANGAN expose di response:** connection string, password, IP internal, API key, full stack trace.
+
+### HTTP Status Code — Jangan Bohong dengan 200
+
+```
+❌ SALAH: HTTP 200 tapi body "unhealthy" → K8s anggap sehat, tetap routing traffic
+✅ BENAR: unhealthy → HTTP 503, healthy → HTTP 200
+```
+
+| Health Status | HTTP Code |
+|---------------|-----------|
+| `healthy` | `200 OK` |
+| `degraded` | `200 OK` atau `503` (sesuai policy) |
+| `unhealthy` | `503 Service Unavailable` |
+
+### Mengapa Tanpa Autentikasi?
+
+Health endpoint **harus** tanpa auth karena:
+
+1. **Circular dependency** — jika auth service down, health check gagal → K8s restart pod yang sebenarnya sehat.
+2. **Infrastructure tidak bisa authenticate** — K8s kubelet, load balancer, uptime monitor hanya cek HTTP status code.
+
+**Alternatif security yang direkomendasikan:**
+
+- Network policy / firewall — restrict akses ke IP cluster internal saja.
+- Separate port — health di port 8081 (internal), app traffic di port 8080 (via Ingress).
+- Response data scoping — hanya info operasional, tanpa data sensitif.
+
+### Startup Probe (Kubernetes)
+
+Untuk service yang start-nya lama (load ML model, migrasi DB), gunakan startup probe agar pod tidak di-kill prematur:
+
+```
+Tanpa startup probe:
+t=0s  │ Container starts
+t=10s │ Liveness probe → FAIL (belum siap) → K8s restart ← SALAH
+
+Dengan startup probe (failureThreshold=30, periodSeconds=10):
+t=0s  │ Container starts
+t=30s │ Startup probe → success
+t=30s │ Liveness & Readiness probe take over → normal
+```
+
+### Contoh Implementasi ASP.NET Core
+
+```csharp
+// Program.cs
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
+    .AddSqlServer(connectionString, name: "database", tags: ["ready"])
+    .AddRedis(redisConnectionString, name: "cache", tags: ["ready"])
+    .AddRabbitMQ(rabbitConnectionString, name: "messageBroker", tags: ["ready"]);
+
+// Map endpoint — pisahkan liveness dan readiness berdasarkan tag
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = WriteHealthResponse
+}).AllowAnonymous();  // Tanpa autentikasi!
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteHealthResponse
+}).AllowAnonymous();
+```
+
+### Contoh Implementasi Node.js / Express
+
+```javascript
+// Health routes SEBELUM auth middleware
+app.use('/health', healthRouter);
+app.use(authMiddleware); // Auth diterapkan setelah health routes
+
+// GET /health/live
+router.get('/live', (req, res) => {
+    res.status(200).json({ status: 'healthy' });
+});
+
+// GET /health/ready
+router.get('/ready', async (req, res) => {
+    const checks = await runReadinessChecks(); // Cek DB, Redis, Broker
+    const status = deriveOverallStatus(checks);
+    res.status(status === 'unhealthy' ? 503 : 200).json({ status, checks });
+});
+```
+
+### Kubernetes Deployment Configuration
+
+```yaml
+# k8s/deployment.yaml
+spec:
+  containers:
+    - name: order-service
+      image: order-service:1.4.2
+      ports:
+        - containerPort: 8080
+
+      # Startup probe — beri waktu container untuk inisialisasi
+      startupProbe:
+        httpGet:
+          path: /health/live
+          port: 8080
+        failureThreshold: 30
+        periodSeconds: 10
+
+      # Liveness — restart jika proses freeze
+      livenessProbe:
+        httpGet:
+          path: /health/live
+          port: 8080
+        periodSeconds: 30
+        timeoutSeconds: 5
+        failureThreshold: 3
+
+      # Readiness — stop traffic jika dependency gagal
+      readinessProbe:
+        httpGet:
+          path: /health/ready
+          port: 8080
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+        successThreshold: 1
+```
 
 ### Aturan / Rules
 

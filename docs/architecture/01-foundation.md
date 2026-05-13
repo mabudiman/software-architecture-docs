@@ -99,13 +99,14 @@ Aturan emas: **arah ketergantungan selalu menuju ke dalam.** Presentation tahu A
 ### Istilah & Konsep / Glossary
 
 - **Entity** — objek bisnis utama yang punya *identitas* (mis. `User` dengan ID, `Order` dengan order number). Dua entity berbeda meskipun isinya sama jika ID-nya beda.
-- **Value Object** — objek yang ditentukan oleh *nilainya*, bukan identitas. Mis. `Money(amount=100, currency=USD)`. Dua value object dengan nilai sama = sama.
+- **Value Object** — objek yang ditentukan oleh *nilainya*, bukan identitas. Mis. `Money(amount=100, currency=USD)`. Dua value object dengan nilai sama = sama. Selalu *immutable* (tidak berubah setelah dibuat).
 - **Aggregate Root** — entity utama yang menjadi pintu masuk untuk memodifikasi sekumpulan objek terkait. Mis. untuk mengubah `OrderItem`, harus melalui `Order` (aggregate root). Ini mencegah data inkonsisten.
-- **Domain Event** — peristiwa penting di domain (mis. `OrderPlaced`, `PaymentReceived`). Layanan lain bisa "mendengarkan" event ini dan bereaksi.
-- **Repository** — abstraksi untuk menyimpan & mengambil entity. Di Domain hanya didefinisikan *interface*-nya; implementasinya (pakai SQL, MongoDB, file) ada di Infrastructure.
-- **Domain Service** — logika domain yang tidak pas masuk ke entity tertentu (mis. `TransferService` yang melibatkan dua `Account`).
+- **Domain Event** — peristiwa penting di domain (mis. `OrderPlaced`, `PaymentReceived`). Layanan lain bisa "mendengarkan" event ini dan bereaksi. Selalu dinamai dalam bentuk *past tense* dan bersifat *immutable*.
+- **Repository** — abstraksi untuk menyimpan & mengambil entity. Di Domain hanya didefinisikan *interface*-nya; implementasinya (pakai SQL, MongoDB, file) ada di Infrastructure. Repository bekerja dengan *Aggregate Root*, bukan entity internal.
+- **Domain Service** — logika domain yang tidak pas masuk ke entity tertentu (mis. `TransferService` yang melibatkan dua `Account`, atau `PricingService` yang menghitung diskon + voucher + loyalty).
 - **DDD (Domain-Driven Design)** — pendekatan desain yang menempatkan model bisnis (Domain) sebagai pusat.
 - **ArchUnit / NetArchTest** — library untuk menulis *test* yang memverifikasi aturan arsitektur (mis. "Domain tidak boleh mengimport package Infrastructure").
+- **Inversion of Control (IoC)** — Domain mendefinisikan *interface* yang dibutuhkan; Infrastructure *mengimplementasikan* interface tersebut. Dependensi konkret di-inject oleh DI container di Composition Root.
 
 ### Anti-pattern
 
@@ -119,6 +120,262 @@ Aturan emas: **arah ketergantungan selalu menuju ke dalam.** Presentation tahu A
 
 **Yang benar:** Domain hanya berisi class murni (POJO / POCO / dataclass). Akses database lewat *interface* Repository yang implementasinya ada di Infrastructure.
 </div>
+
+### Contoh Domain Modeling / Domain Modeling Examples
+
+Berikut contoh lengkap setiap building block Domain:
+
+#### Entity
+
+Entity punya identitas unik. Dua entity berbeda meskipun atributnya sama, jika ID-nya beda.
+
+```csharp
+// ✅ Entity dengan identitas kuat dan factory method
+public class Order : Entity<OrderId>
+{
+    public CustomerId CustomerId { get; private set; }
+    public OrderStatus Status { get; private set; }
+    public Money TotalAmount { get; private set; }
+    private readonly List<OrderItem> _items = new();
+    public IReadOnlyCollection<OrderItem> Items => _items.AsReadOnly();
+
+    // Konstruktor private — hanya bisa dibuat melalui factory method
+    private Order(OrderId id, CustomerId customerId) : base(id)
+    {
+        CustomerId = customerId;
+        Status = OrderStatus.Draft;
+    }
+
+    // Factory method memastikan invariant terpenuhi saat pembuatan
+    public static Order Create(CustomerId customerId, IEnumerable<Product> products, Address shippingAddress)
+    {
+        if (!products.Any())
+            throw new DomainException("Order harus memiliki minimal satu item.");
+
+        var order = new Order(OrderId.NewId(), customerId);
+        foreach (var product in products)
+            order._items.Add(OrderItem.Create(product));
+
+        order.TotalAmount = order.CalculateTotal();
+        order.AddDomainEvent(new OrderCreatedEvent(order.Id, customerId));
+        return order;
+    }
+
+    // Metode bisnis yang memproteksi invariant
+    public void Confirm()
+    {
+        if (Status != OrderStatus.Draft)
+            throw new DomainException("Hanya order berstatus Draft yang dapat dikonfirmasi.");
+        Status = OrderStatus.Confirmed;
+        AddDomainEvent(new OrderConfirmedEvent(Id));
+    }
+}
+```
+
+#### Value Object
+
+Value Object ditentukan oleh nilainya, bukan identitas. Selalu *immutable*.
+
+```csharp
+// ✅ Value Object — immutable, equality berdasarkan nilai
+public sealed class Money : ValueObject
+{
+    public decimal Amount { get; }
+    public string Currency { get; }
+
+    public Money(decimal amount, string currency)
+    {
+        if (amount < 0) throw new DomainException("Jumlah uang tidak boleh negatif.");
+        if (string.IsNullOrWhiteSpace(currency)) throw new DomainException("Kode mata uang wajib diisi.");
+        Amount = amount;
+        Currency = currency.ToUpperInvariant();
+    }
+
+    // Operasi bisnis menghasilkan Value Object baru (immutable)
+    public Money Add(Money other)
+    {
+        if (Currency != other.Currency)
+            throw new DomainException($"Tidak dapat menjumlahkan {Currency} dengan {other.Currency}.");
+        return new Money(Amount + other.Amount, Currency);
+    }
+
+    protected override IEnumerable<object> GetEqualityComponents()
+    {
+        yield return Amount;
+        yield return Currency;
+    }
+}
+```
+
+#### Aggregate Root
+
+Aggregate Root = satu-satunya pintu untuk memodifikasi state aggregate. Objek di luar aggregate hanya boleh referensi Aggregate Root.
+
+```csharp
+// ✅ Order sebagai Aggregate Root — OrderItem hanya bisa dimanipulasi melalui Order
+public class Order : AggregateRoot<OrderId>
+{
+    private readonly List<OrderItem> _items = new();
+    public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
+
+    public void AddItem(ProductId productId, string productName, Money price, int quantity)
+    {
+        if (Status == OrderStatus.Completed)
+            throw new DomainException("Tidak dapat menambah item ke order yang sudah selesai.");
+
+        var existingItem = _items.FirstOrDefault(i => i.ProductId == productId);
+        if (existingItem != null)
+            existingItem.IncreaseQuantity(quantity);
+        else
+            _items.Add(OrderItem.Create(productId, productName, price, quantity));
+
+        RecalculateTotal();
+    }
+}
+
+// ❌ SALAH — mengakses OrderItem langsung dari luar aggregate
+var orderItem = orderItemRepository.GetById(itemId);
+orderItem.ChangeQuantity(5);
+
+// ✅ BENAR — semua perubahan melalui Aggregate Root
+var order = orderRepository.GetById(orderId);
+order.AddItem(productId, productName, price, quantity);
+orderRepository.Save(order);
+```
+
+#### Domain Event
+
+Domain Event = fakta yang sudah terjadi di domain, past tense, immutable.
+
+```csharp
+// ✅ Domain Event — merepresentasikan fakta yang telah terjadi
+public sealed class OrderCreatedEvent : DomainEvent
+{
+    public OrderId OrderId { get; }
+    public CustomerId CustomerId { get; }
+    public Money TotalAmount { get; }
+    public DateTime OccurredAt { get; }
+
+    public OrderCreatedEvent(OrderId orderId, CustomerId customerId, Money totalAmount)
+    {
+        OrderId = orderId;
+        CustomerId = customerId;
+        TotalAmount = totalAmount;
+        OccurredAt = DateTime.UtcNow;
+    }
+}
+
+// Event di-raise di dalam Aggregate Root, di-dispatch oleh Application layer
+public class CreateOrderCommandHandler
+{
+    public async Task HandleAsync(CreateOrderCommand command)
+    {
+        var order = Order.Create(command.CustomerId, products);
+        await _orderRepository.AddAsync(order);
+        await _unitOfWork.CommitAsync();
+
+        // Dispatch semua domain events yang terakumulasi
+        foreach (var domainEvent in order.DomainEvents)
+            await _eventDispatcher.DispatchAsync(domainEvent);
+    }
+}
+```
+
+#### Domain Service
+
+Domain Service = logika bisnis yang melibatkan beberapa domain objects dan tidak pas di satu Entity.
+
+```csharp
+// ✅ Domain Service — menghitung harga akhir dengan diskon + voucher + loyalty
+public class PricingDomainService
+{
+    public Money CalculateFinalPrice(
+        IEnumerable<OrderItem> items, Voucher? voucher, LoyaltyAccount loyaltyAccount)
+    {
+        var subtotal = items.Aggregate(
+            new Money(0, "IDR"),
+            (total, item) => total.Add(item.SubTotal));
+
+        var afterVoucher = voucher != null ? voucher.Apply(subtotal) : subtotal;
+        var loyaltyDiscount = loyaltyAccount.CalculateDiscount(afterVoucher);
+        return afterVoucher.Subtract(loyaltyDiscount);
+    }
+}
+```
+
+#### Repository Interface & Implementation
+
+Interface di Domain, implementasi di Infrastructure. Repository bekerja dengan Aggregate Root.
+
+```csharp
+// ✅ Interface di Domain layer
+public interface IOrderRepository
+{
+    Task<Order?> GetByIdAsync(OrderId id, CancellationToken ct = default);
+    Task AddAsync(Order order, CancellationToken ct = default);
+    Task UpdateAsync(Order order, CancellationToken ct = default);
+}
+
+// ✅ Implementasi di Infrastructure layer
+public class OrderRepository : IOrderRepository
+{
+    private readonly OrderDbContext _dbContext;
+    public OrderRepository(OrderDbContext dbContext) => _dbContext = dbContext;
+
+    public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken ct = default)
+        => await _dbContext.Orders.Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
+
+    public async Task AddAsync(Order order, CancellationToken ct = default)
+        => await _dbContext.Orders.AddAsync(order, ct);
+}
+
+// Composition Root menghubungkan keduanya
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+```
+
+### Domain Layer Tanpa Framework Dependency
+
+Domain layer hanya menggunakan *pure language constructs* — class, interface, enum, exception bawaan bahasa.
+
+```csharp
+// ❌ SALAH — Domain Entity bergantung pada framework
+using System.ComponentModel.DataAnnotations;  // EF Core
+using Newtonsoft.Json;                         // JSON library
+
+public class Product
+{
+    [Key]                    // ❌ EF Core attribute
+    public int Id { get; set; }
+    [Required]               // ❌ Data Annotations dari ASP.NET
+    public string Name { get; set; }
+    [JsonIgnore]             // ❌ Newtonsoft.Json attribute
+    public decimal CostPrice { get; set; }
+}
+```
+
+```csharp
+// ✅ BENAR — Domain Entity murni tanpa framework dependency
+public class Product : Entity<ProductId>
+{
+    public string Name { get; private set; }
+    public Money Price { get; private set; }
+
+    public void UpdatePrice(Money newPrice)
+    {
+        if (newPrice.Amount <= 0)
+            throw new DomainException("Harga harus lebih dari nol.");
+        Price = newPrice;
+    }
+}
+```
+
+| Jika Domain bergantung pada framework | Dampaknya |
+|---------------------------------------|-----------|
+| ASP.NET attributes (`[Required]`) | Domain terikat pada cara serialisasi HTTP |
+| EF Core attributes (`[Column]`, `[Table]`) | Domain terikat pada cara data disimpan |
+| Logging framework (`ILogger<T>`) | Domain terikat pada cara logging dilakukan |
+| DI container abstractions | Domain tidak bisa diuji tanpa container |
 
 ### Aturan / Rules
 
