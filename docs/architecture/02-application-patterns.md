@@ -120,26 +120,22 @@ Tapi: microservice **bukan obat mujarab**. Kalau tim kecil & domain belum komple
 
 ### Contoh Struktur / Example
 
-```text
-[root]
-├── src/
-│   ├── shared/
-│   │   ├── contracts/      ← event schema, DTO antar service
-│   │   └── common/         ← logger, http-client wrapper (NO business logic!)
-│   └── service-name/
-│       ├── src/
-│       │   ├── presentation/
-│       │   ├── application/
-│       │   ├── domain/
-│       │   └── infrastructure/
-│       ├── tests/
-│       │   ├── unit/
-│       │   ├── integration/
-│       │   └── contract/
-│       └── Dockerfile
-├── infra/
-└── docker-compose.yml
-```
+| Folder / File | Deskripsi |
+|---|---|
+| `src/` | Root kode aplikasi |
+| `├── shared/contracts/` | Event schema, DTO antar service |
+| `├── shared/common/` | Logger, http-client wrapper (NO business logic!) |
+| `└── service-name/` | Folder per service / bounded context |
+| `    ├── src/presentation/` | REST / gRPC controller |
+| `    ├── src/application/` | Use case, orchestrator |
+| `    ├── src/domain/` | Entity, Value Object, Repository interface |
+| `    ├── src/infrastructure/` | DB, HTTP client, queue implementation |
+| `    ├── tests/unit/` | Unit test (no I/O) |
+| `    ├── tests/integration/` | Integration test dengan DB / queue nyata |
+| `    ├── tests/contract/` | Consumer-driven contract test |
+| `    └── Dockerfile` | Container image definition per service |
+| `infra/` | Konfigurasi infrastruktur |
+| `docker-compose.yml` | Definisi container untuk local development |
 
 ---
 

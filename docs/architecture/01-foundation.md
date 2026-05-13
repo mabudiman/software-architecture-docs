@@ -46,23 +46,21 @@ This chapter covers the most fundamental aspects of setting up a software projec
 
 ### Contoh Struktur / Example
 
-```text
-[root]
-├── .vscode/         ← konfigurasi editor (opsional, sebagian tim ignore)
-├── .github/
-│   ├── instructions/
-│   ├── skills/
-│   └── workflows/   ← CI/CD pipeline
-├── docs/
-│   ├── adr/         ← architecture decision records
-│   └── api/         ← API spec (OpenAPI/Swagger)
-├── src/             ← kode aplikasi
-├── scripts/         ← skrip bantu
-├── specs/           ← BDD spec / feature files
-├── infra/           ← konfigurasi deploy & infra
-├── docker-compose.yml
-└── readme.md
-```
+| Folder / File | Deskripsi |
+|---|---|
+| `project-root/` | Root folder proyek |
+| `├── .github/workflows/` | CI/CD pipeline (GitHub Actions) |
+| `├── .github/instructions/` | Instruksi khusus untuk AI assistant / Copilot |
+| `├── .github/skills/` | Skill definition untuk AI assistant |
+| `├── docs/adr/` | Architecture Decision Records |
+| `├── docs/api/` | API spec (OpenAPI / Swagger) |
+| `├── src/` | Kode aplikasi utama (production code) |
+| `├── scripts/` | Skrip bantu (backup, seeder, migrasi manual) |
+| `├── specs/` | BDD spec / feature files (Gherkin) |
+| `├── infra/` | Konfigurasi deploy & infrastruktur (Docker, K8s, Terraform) |
+| `├── .vscode/` | Konfigurasi editor — opsional, sebagian tim `.gitignore` |
+| `├── docker-compose.yml` | Definisi container untuk local development |
+| `└── readme.md` | Dokumentasi utama proyek |
 
 ---
 
@@ -142,23 +140,19 @@ Aturan emas: **arah ketergantungan selalu menuju ke dalam.** Presentation tahu A
 
 ### Contoh Struktur / Example
 
-```text
-[root]
-└── src/
-    ├── shared/
-    │   ├── contracts/      ← interface/DTO yang dipakai bersama
-    │   └── common/         ← utilitas umum (logger wrapper, helper)
-    └── service-name/
-        ├── src/
-        │   ├── presentation/    ← REST/gRPC controller
-        │   ├── application/     ← use case, orchestrator
-        │   ├── domain/          ← entity, value object, repo interface
-        │   └── infrastructure/  ← DB, HTTP client, queue impl
-        └── tests/
-            ├── unit/           ← test domain & application (no I/O)
-            ├── integration/    ← test dgn DB / queue nyata
-            └── contract/       ← consumer-driven contract test
-```
+| Folder | Deskripsi |
+|---|---|
+| `src/` | Root kode aplikasi |
+| `├── shared/contracts/` | Interface / DTO yang dipakai bersama antar service |
+| `├── shared/common/` | Utilitas umum (logger wrapper, helper) |
+| `└── service-name/` | Folder per service / bounded context |
+| `    ├── src/presentation/` | REST / gRPC controller |
+| `    ├── src/application/` | Use case, orchestrator |
+| `    ├── src/domain/` | Entity, Value Object, Repository interface |
+| `    ├── src/infrastructure/` | DB, HTTP client, queue implementation |
+| `    ├── tests/unit/` | Test domain & application (no I/O) |
+| `    ├── tests/integration/` | Test dengan DB / queue nyata |
+| `    └── tests/contract/` | Consumer-driven contract test |
 
 ---
 
