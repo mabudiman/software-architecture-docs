@@ -1851,25 +1851,72 @@
 <p><span class="badge badge-optional">Optional</span> Whitelist panggilan internal antar service dari rate limit user-facing.</p>
 <p><span class="badge badge-optional">Optional</span> Log pelanggaran rate limit untuk monitoring abuse.</p>
 <h3 id="contoh-struktur-example">Contoh Struktur / Example<a class="headerlink" href="#contoh-struktur-example" title="Permanent link">&para;</a></h3>
-<p><code>text
-[root]
-├── src/
-│   ├── shared/
-│   │   ├── contracts/      ← event schema, DTO antar service
-│   │   └── common/         ← logger, http-client wrapper (NO business logic!)
-│   └── service-name/
-│       ├── src/
-│       │   ├── presentation/
-│       │   ├── application/
-│       │   ├── domain/
-│       │   └── infrastructure/
-│       ├── tests/
-│       │   ├── unit/
-│       │   ├── integration/
-│       │   └── contract/
-│       └── Dockerfile
-├── infra/
-└── docker-compose.yml</code></p>
+<table>
+<thead>
+<tr>
+<th>Folder / File</th>
+<th>Deskripsi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/</code></td>
+<td>Root kode aplikasi</td>
+</tr>
+<tr>
+<td><code>├── shared/contracts/</code></td>
+<td>Event schema, DTO antar service</td>
+</tr>
+<tr>
+<td><code>├── shared/common/</code></td>
+<td>Logger, http-client wrapper (NO business logic!)</td>
+</tr>
+<tr>
+<td><code>└── service-name/</code></td>
+<td>Folder per service / bounded context</td>
+</tr>
+<tr>
+<td><code>├── src/presentation/</code></td>
+<td>REST / gRPC controller</td>
+</tr>
+<tr>
+<td><code>├── src/application/</code></td>
+<td>Use case, orchestrator</td>
+</tr>
+<tr>
+<td><code>├── src/domain/</code></td>
+<td>Entity, Value Object, Repository interface</td>
+</tr>
+<tr>
+<td><code>├── src/infrastructure/</code></td>
+<td>DB, HTTP client, queue implementation</td>
+</tr>
+<tr>
+<td><code>├── tests/unit/</code></td>
+<td>Unit test (no I/O)</td>
+</tr>
+<tr>
+<td><code>├── tests/integration/</code></td>
+<td>Integration test dengan DB / queue nyata</td>
+</tr>
+<tr>
+<td><code>├── tests/contract/</code></td>
+<td>Consumer-driven contract test</td>
+</tr>
+<tr>
+<td><code>└── Dockerfile</code></td>
+<td>Container image definition per service</td>
+</tr>
+<tr>
+<td><code>infra/</code></td>
+<td>Konfigurasi infrastruktur</td>
+</tr>
+<tr>
+<td><code>docker-compose.yml</code></td>
+<td>Definisi container untuk local development</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="async-concurrency">Async &amp; Concurrency<a class="headerlink" href="#async-concurrency" title="Permanent link">&para;</a></h2>
 <h3 id="apa-ini-what-is-this_1">Apa ini? / What is this?<a class="headerlink" href="#apa-ini-what-is-this_1" title="Permanent link">&para;</a></h3>

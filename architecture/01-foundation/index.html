@@ -1081,22 +1081,68 @@
 <p><span class="badge badge-mandatory">Mandatory</span> Setiap proyek menggunakan struktur folder dasar yang disepakati sebelum coding dimulai.</p>
 <p><span class="badge badge-mandatory">Mandatory</span> Folder spesifik (<code>src/</code>, <code>infra/</code>, <code>docs/</code>, <code>specs/</code>) tidak dicampur isinya.</p>
 <h3 id="contoh-struktur-example">Contoh Struktur / Example<a class="headerlink" href="#contoh-struktur-example" title="Permanent link">&para;</a></h3>
-<p><code>text
-[root]
-├── .vscode/         ← konfigurasi editor (opsional, sebagian tim ignore)
-├── .github/
-│   ├── instructions/
-│   ├── skills/
-│   └── workflows/   ← CI/CD pipeline
-├── docs/
-│   ├── adr/         ← architecture decision records
-│   └── api/         ← API spec (OpenAPI/Swagger)
-├── src/             ← kode aplikasi
-├── scripts/         ← skrip bantu
-├── specs/           ← BDD spec / feature files
-├── infra/           ← konfigurasi deploy &amp; infra
-├── docker-compose.yml
-└── readme.md</code></p>
+<table>
+<thead>
+<tr>
+<th>Folder / File</th>
+<th>Deskripsi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>project-root/</code></td>
+<td>Root folder proyek</td>
+</tr>
+<tr>
+<td><code>├── .github/workflows/</code></td>
+<td>CI/CD pipeline (GitHub Actions)</td>
+</tr>
+<tr>
+<td><code>├── .github/instructions/</code></td>
+<td>Instruksi khusus untuk AI assistant / Copilot</td>
+</tr>
+<tr>
+<td><code>├── .github/skills/</code></td>
+<td>Skill definition untuk AI assistant</td>
+</tr>
+<tr>
+<td><code>├── docs/adr/</code></td>
+<td>Architecture Decision Records</td>
+</tr>
+<tr>
+<td><code>├── docs/api/</code></td>
+<td>API spec (OpenAPI / Swagger)</td>
+</tr>
+<tr>
+<td><code>├── src/</code></td>
+<td>Kode aplikasi utama (production code)</td>
+</tr>
+<tr>
+<td><code>├── scripts/</code></td>
+<td>Skrip bantu (backup, seeder, migrasi manual)</td>
+</tr>
+<tr>
+<td><code>├── specs/</code></td>
+<td>BDD spec / feature files (Gherkin)</td>
+</tr>
+<tr>
+<td><code>├── infra/</code></td>
+<td>Konfigurasi deploy &amp; infrastruktur (Docker, K8s, Terraform)</td>
+</tr>
+<tr>
+<td><code>├── .vscode/</code></td>
+<td>Konfigurasi editor — opsional, sebagian tim <code>.gitignore</code></td>
+</tr>
+<tr>
+<td><code>├── docker-compose.yml</code></td>
+<td>Definisi container untuk local development</td>
+</tr>
+<tr>
+<td><code>└── readme.md</code></td>
+<td>Dokumentasi utama proyek</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="clean-architecture">Clean Architecture<a class="headerlink" href="#clean-architecture" title="Permanent link">&para;</a></h2>
 <h3 id="apa-ini-what-is-this_1">Apa ini? / What is this?<a class="headerlink" href="#apa-ini-what-is-this_1" title="Permanent link">&para;</a></h3>
@@ -1154,22 +1200,60 @@
 <p><span class="badge badge-mandatory">Mandatory</span> Struktur folder mencerminkan layer arsitektur, bukan jenis file.</p>
 <p><span class="badge badge-mandatory">Mandatory</span> Kode shared antar service diletakkan di <code>/src/shared/</code> — tidak ada duplikasi cross-cutting concern.</p>
 <h3 id="contoh-struktur-example_1">Contoh Struktur / Example<a class="headerlink" href="#contoh-struktur-example_1" title="Permanent link">&para;</a></h3>
-<p><code>text
-[root]
-└── src/
-    ├── shared/
-    │   ├── contracts/      ← interface/DTO yang dipakai bersama
-    │   └── common/         ← utilitas umum (logger wrapper, helper)
-    └── service-name/
-        ├── src/
-        │   ├── presentation/    ← REST/gRPC controller
-        │   ├── application/     ← use case, orchestrator
-        │   ├── domain/          ← entity, value object, repo interface
-        │   └── infrastructure/  ← DB, HTTP client, queue impl
-        └── tests/
-            ├── unit/           ← test domain &amp; application (no I/O)
-            ├── integration/    ← test dgn DB / queue nyata
-            └── contract/       ← consumer-driven contract test</code></p>
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>Deskripsi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/</code></td>
+<td>Root kode aplikasi</td>
+</tr>
+<tr>
+<td><code>├── shared/contracts/</code></td>
+<td>Interface / DTO yang dipakai bersama antar service</td>
+</tr>
+<tr>
+<td><code>├── shared/common/</code></td>
+<td>Utilitas umum (logger wrapper, helper)</td>
+</tr>
+<tr>
+<td><code>└── service-name/</code></td>
+<td>Folder per service / bounded context</td>
+</tr>
+<tr>
+<td><code>├── src/presentation/</code></td>
+<td>REST / gRPC controller</td>
+</tr>
+<tr>
+<td><code>├── src/application/</code></td>
+<td>Use case, orchestrator</td>
+</tr>
+<tr>
+<td><code>├── src/domain/</code></td>
+<td>Entity, Value Object, Repository interface</td>
+</tr>
+<tr>
+<td><code>├── src/infrastructure/</code></td>
+<td>DB, HTTP client, queue implementation</td>
+</tr>
+<tr>
+<td><code>├── tests/unit/</code></td>
+<td>Test domain &amp; application (no I/O)</td>
+</tr>
+<tr>
+<td><code>├── tests/integration/</code></td>
+<td>Test dengan DB / queue nyata</td>
+</tr>
+<tr>
+<td><code>└── tests/contract/</code></td>
+<td>Consumer-driven contract test</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="architecture-decision-record-adr">Architecture Decision Record (ADR)<a class="headerlink" href="#architecture-decision-record-adr" title="Permanent link">&para;</a></h2>
 <h3 id="apa-ini-what-is-this_2">Apa ini? / What is this?<a class="headerlink" href="#apa-ini-what-is-this_2" title="Permanent link">&para;</a></h3>
