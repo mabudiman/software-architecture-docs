@@ -697,8 +697,44 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#istilah-konsep-glossary_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Istilah &amp; Konsep / Glossary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anti-pattern_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Anti-pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aturan-rules_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aturan / Rules
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ringkasan-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ringkasan / Summary
+    </span>
+  </a>
   
 </li>
       
@@ -1069,8 +1105,44 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#istilah-konsep-glossary_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Istilah &amp; Konsep / Glossary
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#anti-pattern_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Anti-pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aturan-rules_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aturan / Rules
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ringkasan-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ringkasan / Summary
+    </span>
+  </a>
   
 </li>
       
@@ -1234,17 +1306,15 @@
 <h3 id="use-case_2">Use Case<a class="headerlink" href="#use-case_2" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>Skenario SQL Injection klasik:</strong></p>
-<p>```python</p>
-<h1 id="salah">Salah ❌<a class="headerlink" href="#salah" title="Permanent link">&para;</a></h1>
-<p>query = "SELECT * FROM users WHERE name='" + user_input + "'"
-db.execute(query)
-```</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Salah ❌</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM users WHERE name=&#39;&quot;</span> <span class="o">+</span> <span class="n">user_input</span> <span class="o">+</span> <span class="s2">&quot;&#39;&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+</span></code></pre></div>
 <p>Jika <code>user_input = "' OR '1'='1"</code>, query jadi <code>SELECT * FROM users WHERE name='' OR '1'='1'</code> → semua user di-dump. Bencana.</p>
-<p>```python</p>
-<h1 id="benar">Benar ✅<a class="headerlink" href="#benar" title="Permanent link">&para;</a></h1>
-<p class="usecase">query = "SELECT * FROM users WHERE name = ?"
-db.execute(query, [user_input])  # parameterized
-```</p>
+<p class="usecase"><div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Benar ✅</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM users WHERE name = ?&quot;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">user_input</span><span class="p">])</span>  <span class="c1"># parameterized</span>
+</span></code></pre></div></p>
 </blockquote>
 <h3 id="istilah-konsep-glossary_2">Istilah &amp; Konsep / Glossary<a class="headerlink" href="#istilah-konsep-glossary_2" title="Permanent link">&para;</a></h3>
 <ul>

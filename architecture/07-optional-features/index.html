@@ -625,6 +625,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ringkasan-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ringkasan / Summary
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -754,6 +763,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ringkasan-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ringkasan / Summary
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -823,24 +841,24 @@
 <p><span class="badge badge-optional">Optional</span> Hapus flag setelah fitur <strong>fully released &amp; stable</strong>.</p>
 <p><span class="badge badge-optional">Optional</span> Dukung <strong>targeting</strong>: per user, per tenant, per persentase traffic.</p>
 <h3 id="contoh-implementasi-example">Contoh Implementasi / Example<a class="headerlink" href="#contoh-implementasi-example" title="Permanent link">&para;</a></h3>
-<p>```python</p>
-<h1 id="tanpa-feature-flag-kaku-butuh-redeploy-untuk-ubah-perilaku">Tanpa feature flag (kaku, butuh redeploy untuk ubah perilaku)<a class="headerlink" href="#tanpa-feature-flag-kaku-butuh-redeploy-untuk-ubah-perilaku" title="Permanent link">&para;</a></h1>
-<p>def calculate_price(order):
-    return new_pricing_algorithm(order)  # langsung pakai</p>
-<h1 id="dengan-feature-flag-fleksibel">Dengan feature flag (fleksibel)<a class="headerlink" href="#dengan-feature-flag-fleksibel" title="Permanent link">&para;</a></h1>
-<p>def calculate_price(order):
-    if feature_flags.is_enabled("new-pricing-v2", user=order.user):
-        return new_pricing_algorithm(order)
-    return legacy_pricing_algorithm(order)
-```</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Tanpa feature flag (kaku, butuh redeploy untuk ubah perilaku)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">calculate_price</span><span class="p">(</span><span class="n">order</span><span class="p">):</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="k">return</span> <span class="n">new_pricing_algorithm</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>  <span class="c1"># langsung pakai</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Dengan feature flag (fleksibel)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">calculate_price</span><span class="p">(</span><span class="n">order</span><span class="p">):</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="k">if</span> <span class="n">feature_flags</span><span class="o">.</span><span class="n">is_enabled</span><span class="p">(</span><span class="s2">&quot;new-pricing-v2&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">order</span><span class="o">.</span><span class="n">user</span><span class="p">):</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="k">return</span> <span class="n">new_pricing_algorithm</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="k">return</span> <span class="n">legacy_pricing_algorithm</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+</span></code></pre></div>
 <p><strong>Lifecycle flag yang sehat:</strong></p>
-<p><code>text
-Phase 1: Flag dibuat → off untuk semua
-Phase 2: Aktifkan untuk internal team   (1 hari)
-Phase 3: Beta users (5%)                (3 hari)
-Phase 4: 50% traffic                    (3 hari)
-Phase 5: 100% traffic                   (1 minggu monitoring)
-Phase 6: HAPUS flag dari kode + tutup tiket</code></p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Phase 1: Flag dibuat → off untuk semua
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>Phase 2: Aktifkan untuk internal team   (1 hari)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>Phase 3: Beta users (5%)                (3 hari)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Phase 4: 50% traffic                    (3 hari)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>Phase 5: 100% traffic                   (1 minggu monitoring)
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>Phase 6: HAPUS flag dari kode + tutup tiket
+</span></code></pre></div>
 <hr />
 <h2 id="ringkasan-summary">Ringkasan / Summary<a class="headerlink" href="#ringkasan-summary" title="Permanent link">&para;</a></h2>
 <p>Feature flag adalah alat ampuh untuk <strong>mengendalikan release secara halus</strong>, tapi punya biaya: kompleksitas codebase. Aturan emasnya — <strong>selalu rencanakan tanggal hapus flag</strong> sejak ia dibuat.</p>
