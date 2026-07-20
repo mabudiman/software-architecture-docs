@@ -11,7 +11,7 @@ A set of software architecture notes I put together while learning — and keep 
 
 ## Live Site
 
-**👉 [https://projects.mabudiman.my.id/software-architecture-docs/](https://projects.mabudiman.my.id/software-architecture-docs/)**
+**[https://projects.mabudiman.my.id/software-architecture-docs/](https://projects.mabudiman.my.id/software-architecture-docs/)**
 
 ---
 
