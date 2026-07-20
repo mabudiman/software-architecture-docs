@@ -3,53 +3,45 @@
 [![Deploy Documentation](https://github.com/mabudiman/software-architecture-docs/actions/workflows/deploy-docs.yml/badge.svg)](https://github.com/mabudiman/software-architecture-docs/actions/workflows/deploy-docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-Dokumentasi arsitektur perangkat lunak yang **mengajar** — bukan sekadar daftar aturan. Ditulis bilingual (Bahasa Indonesia + English) untuk programmer di semua level: dari junior yang baru mengenal istilah seperti *idempotency*, *Saga*, atau *Circuit Breaker*, hingga tech lead yang ingin meninjau ulang best practice.
+Kumpulan catatan arsitektur perangkat lunak yang saya susun sambil belajar dan terus saya perbarui. Ditulis dua bahasa (Indonesian + English) karena saya sendiri sering bolak-balik antara keduanya. Isinya mulai dari hal dasar kayak struktur folder dan Clean Architecture, sampai topik yang biasanya bikin pusing kayak *idempotency*, *Saga*, atau *Circuit Breaker*.
 
-A software architecture documentation that **teaches** — not just lists rules. Written bilingually (Indonesian + English) for programmers at every level.
-
----
-
-## 🌐 Live Site
-
-**👉 [https://mabudiman.github.io/software-architecture-docs/](https://mabudiman.github.io/software-architecture-docs/)**
+A set of software architecture notes I put together while learning — and keep updating. Bilingual (Indonesian + English) because I keep switching between the two. Covers the basics like folder structure and Clean Architecture, up to the stuff that usually trips people up: *idempotency*, *Saga*, *Circuit Breaker*.
 
 ---
 
-## 📚 Daftar Bab / Table of Contents
+## Live Site
+
+**👉 [https://projects.mabudiman.my.id/software-architecture-docs/](https://projects.mabudiman.my.id/software-architecture-docs/)**
+
+---
+
+## Daftar Bab / Table of Contents
 
 | # | Bab / Chapter | Isi / Contents |
 |---|---|---|
-| 1 | [Foundation](https://mabudiman.github.io/software-architecture-docs/architecture/01-foundation/) | Struktur folder, Clean Architecture, Architecture Decision Record (ADR) |
-| 2 | [Application Patterns](https://mabudiman.github.io/software-architecture-docs/architecture/02-application-patterns/) | Microservice, Async & Concurrency, Data Access, Cache, Service Bus, Idempotency |
-| 3 | [Security](https://mabudiman.github.io/software-architecture-docs/architecture/03-security/) | Authentication & Authorization, Secret Management, Encryption, Secure Coding |
-| 4 | [Quality & Reliability](https://mabudiman.github.io/software-architecture-docs/architecture/04-quality-reliability/) | Testing (Unit, Integration, E2E, BDD), Code Quality, Edge Case, Exception Handling |
-| 5 | [Operations](https://mabudiman.github.io/software-architecture-docs/architecture/05-operations/) | Logging, Health Check, APM, Audit Trail |
-| 6 | [User Interface](https://mabudiman.github.io/software-architecture-docs/architecture/06-user-interface/) | Component Library, Design System, Accessibility (a11y) |
-| 7 | [Optional Features](https://mabudiman.github.io/software-architecture-docs/architecture/07-optional-features/) | Feature Flags |
+| 1 | [Foundation](https://projects.mabudiman.my.id/software-architecture-docs/architecture/01-foundation/) | Struktur folder, Clean Architecture, Architecture Decision Record (ADR) |
+| 2 | [Application Patterns](https://projects.mabudiman.my.id/software-architecture-docs/architecture/02-application-patterns/) | Microservice, Async & Concurrency, Data Access, Cache, Service Bus, Idempotency |
+| 3 | [Security](https://projects.mabudiman.my.id/software-architecture-docs/architecture/03-security/) | Authentication & Authorization, Secret Management, Encryption, Secure Coding |
+| 4 | [Quality & Reliability](https://projects.mabudiman.my.id/software-architecture-docs/architecture/04-quality-reliability/) | Testing (Unit, Integration, E2E, BDD), Code Quality, Edge Case, Exception Handling |
+| 5 | [Operations](https://projects.mabudiman.my.id/software-architecture-docs/architecture/05-operations/) | Logging, Health Check, APM, Audit Trail |
+| 6 | [User Interface](https://projects.mabudiman.my.id/software-architecture-docs/architecture/06-user-interface/) | Component Library, Design System, Accessibility (a11y) |
+| 7 | [Optional Features](https://projects.mabudiman.my.id/software-architecture-docs/architecture/07-optional-features/) | Feature Flags |
 
 ---
 
-## ✨ Apa yang Membuat Dokumentasi Ini Berbeda? / What Makes This Different?
+## Apa yang Membuat Dokumentasi Ini Berbeda? / What Makes This Different?
 
-Setiap topik mengikuti format yang sama agar mudah diikuti:
+Saya sengaja hindari gaya "daftar aturan kering" yang biasanya ada di dokumentasi perusahaan. Tiap topik saya tulis dengan pendekatan yang sama supaya gampang dibaca: definisi dan analogi sederhana dulu, kenapa ini penting, contoh skenario nyata, glosarium istilah, anti-pattern kalau perlu, terus aturan mainnya (dengan label `[Mandatory]` atau `[Optional]`), dan diakhiri contoh struktur atau potongan kode.
 
-Each topic follows the same format for easy reading:
+I deliberately avoid the dry "list of rules" style you usually see in corporate docs. Each topic follows the same approach so it's easy to read: a simple definition and analogy first, why it matters, a real scenario, a glossary, anti-patterns when relevant, then the actual rules (labeled `[Mandatory]` or `[Optional]`), ending with an example structure or code snippet.
 
-1. **Apa ini? / What is this?** — definisi sederhana + analogi
-2. **Mengapa penting? / Why it matters?** — masalah yang dipecahkan
-3. **Use Case** — cerita skenario konkret end-to-end
-4. **Istilah & Konsep / Glossary** — penjelasan istilah teknis dengan bahasa awam
-5. **Anti-pattern** (jika relevan) — contoh salah dan kenapa
-6. **Aturan / Rules** — daftar aturan dengan label `[Mandatory]` atau `[Optional]`
-7. **Contoh Struktur / Example** — folder tree atau snippet kode
+Intinya: kalau kamu belum pernah denger istilah tertentu, habis baca bagian itu kamu harusnya sudah paham — nggak perlu buka Google lagi.
 
-> **Tujuan utama:** Programmer yang tadinya *tidak tahu* sebuah konsep, setelah membaca menjadi *paham* — tanpa harus googling istilah.
->
-> **Main goal:** A programmer who *didn't know* a concept will *understand* it after reading — without needing to google terms.
+The bottom line: if you've never heard a term before, after reading that section you should get it — no need to Google again.
 
 ---
 
-## 🛠️ Teknologi / Tech Stack
+## Teknologi / Tech Stack
 
 - **[MkDocs](https://www.mkdocs.org/)** — generator situs dokumentasi berbasis Markdown
 - **[Material for MkDocs](https://squidfunk.github.io/mkdocs-material/)** — tema dengan dukungan dark mode, search, dan navigasi modern
@@ -58,7 +50,7 @@ Each topic follows the same format for easy reading:
 
 ---
 
-## 🚀 Menjalankan Lokal / Running Locally
+## Menjalankan Lokal / Running Locally
 
 ```bash
 # Clone repo
@@ -82,7 +74,7 @@ mkdocs build
 
 ---
 
-## 📁 Struktur Repository / Repository Structure
+## Struktur Repository / Repository Structure
 
 ```text
 [root]
@@ -100,7 +92,7 @@ mkdocs build
 
 ---
 
-## 🤝 Kontribusi / Contributing
+## Kontribusi / Contributing
 
 Dokumentasi ini hidup — terbuka untuk perbaikan, klarifikasi, dan tambahan contoh:
 
@@ -115,6 +107,6 @@ Untuk perbaikan tipo / kalimat kecil, langsung kirim PR. Untuk perubahan besar (
 
 ---
 
-## 📄 Lisensi / License
+## Lisensi / License
 
 [MIT](LICENSE) — silakan gunakan, modifikasi, dan distribusikan secara bebas.
